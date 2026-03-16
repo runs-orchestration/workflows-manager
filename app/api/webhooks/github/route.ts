@@ -19,6 +19,9 @@ export async function POST(request: NextRequest) {
     const headSha = pull_request.head.sha;
     const prNumber = pull_request.number;
 
+    const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : `${request.nextUrl.protocol}//${request.nextUrl.host}`;
     const octokit = createOctokit();
 
     const { data: checkRun } = await octokit.rest.checks.create({
@@ -35,11 +38,10 @@ export async function POST(request: NextRequest) {
       workflow_id: "recipe-1.yml",
       ref: "main",
       inputs: {
-        source_owner: owner,
-        source_repo: repo,
+        repository: `${owner}/${repo}`,
         pr_number: String(prNumber),
         head_sha: headSha,
-        check_run_id: String(checkRun.id),
+        callback_url: `${baseUrl}/api/checks/${owner}/${repo}/${checkRun.id}/complete`,
       },
     });
 

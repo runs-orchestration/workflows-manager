@@ -22,8 +22,12 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const baseUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : `${request.nextUrl.protocol}//${request.nextUrl.host}`;
   const octokit = createOctokit();
   let checkRunId: number | undefined;
+  let callbackUrl: string | undefined;
 
   if (check_name && head_sha) {
     const { data: checkRun } = await octokit.rest.checks.create({
@@ -34,6 +38,7 @@ export async function POST(request: NextRequest) {
       status: "in_progress",
     });
     checkRunId = checkRun.id;
+    callbackUrl = `${baseUrl}/api/checks/${owner}/${repo}/${checkRunId}/complete`;
   }
 
   await octokit.rest.actions.createWorkflowDispatch({
@@ -43,9 +48,9 @@ export async function POST(request: NextRequest) {
     ref,
     inputs: {
       ...inputs,
-      ...(checkRunId && { check_run_id: String(checkRunId) }),
+      ...(callbackUrl && { callback_url: callbackUrl }),
     },
   });
 
-  return NextResponse.json({ check_run_id: checkRunId ?? null });
+  return NextResponse.json({ check_run_id: checkRunId ?? null, callback_url: callbackUrl ?? null });
 }
